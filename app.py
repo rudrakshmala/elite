@@ -4,7 +4,7 @@ Serves the React frontend with all trading data and bot controls.
 """
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -17,6 +17,11 @@ import json
 import datetime
 import sys
 import traceback
+from dotenv import load_dotenv
+from typing import Optional
+
+# Load environment variables from .env file
+load_dotenv()
 
 # ── Lazy imports (bots loaded after config is ready) ──
 crypto_bot = None
@@ -123,6 +128,29 @@ class BacktestPayload(BaseModel):
     symbol_a: str
     symbol_b: str
 
+class LoginPayload(BaseModel):
+    password: str
+
+# ── Authentication ──
+APP_PASSWORD = os.getenv("APP_PASSWORD", "")
+
+def verify_token(authorization: Optional[str] = Header(None)):
+    """Verify authentication token from header."""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+    
+    # Token format: "Bearer <token>"
+    try:
+        scheme, token = authorization.split()
+        if scheme.lower() != "bearer":
+            raise HTTPException(status_code=401, detail="Invalid authorization scheme")
+        if token != "elite-bot-token":
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid authorization format")
+    
+    return token
+
 # ── App lifecycle ──
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -142,11 +170,27 @@ app.add_middleware(
 )
 
 # ═══════════════════════════════════════════
+# 0. AUTHENTICATION
+# ═══════════════════════════════════════════
+
+@app.post("/api/auth/login")
+def login(payload: LoginPayload):
+    """Authenticate with password."""
+    if not APP_PASSWORD:
+        raise HTTPException(status_code=500, detail="Password not configured on server")
+    
+    if payload.password != APP_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid password")
+    
+    add_log("✅ User logged in", "success")
+    return {"success": True, "token": "elite-bot-token"}
+
+# ═══════════════════════════════════════════
 # 1. CONFIG / API KEYS
 # ═══════════════════════════════════════════
 
 @app.get("/api/config")
-def get_config():
+def get_config(token: str = Depends(verify_token)):
     """Return masked keys + paper mode status."""
     key = runtime_config["api_key"]
     masked = key[:4] + "****" + key[-4:] if len(key) > 8 else "Not Set"
@@ -158,7 +202,7 @@ def get_config():
     }
 
 @app.post("/api/config")
-def set_config(payload: ApiKeyPayload):
+def set_config(payload: ApiKeyPayload, token: str = Depends(verify_token)):
     """Update API keys at runtime."""
     runtime_config["api_key"] = payload.api_key
     runtime_config["secret_key"] = payload.secret_key
@@ -171,7 +215,7 @@ def set_config(payload: ApiKeyPayload):
     return {"msg": "Config updated", "paper": payload.paper}
 
 @app.post("/api/config/validate")
-def validate_config():
+def validate_config(token: str = Depends(verify_token)):
     """Test if current keys can connect to Alpaca."""
     try:
         client = get_trading_client()
@@ -191,7 +235,7 @@ def validate_config():
 # ═══════════════════════════════════════════
 
 @app.get("/api/account")
-def get_account():
+def get_account(token: str = Depends(verify_token)):
     """Full account info."""
     try:
         client = get_trading_client()
@@ -215,7 +259,7 @@ def get_account():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/account/portfolio-history")
-def get_portfolio_history(period: str = "1M", timeframe: str = "1D"):
+def get_portfolio_history(period: str = "1M", timeframe: str = "1D", token: str = Depends(verify_token)):
     """Portfolio equity history for charting."""
     try:
         from alpaca.trading.requests import GetPortfolioHistoryRequest
@@ -237,7 +281,7 @@ def get_portfolio_history(period: str = "1M", timeframe: str = "1D"):
 # ═══════════════════════════════════════════
 
 @app.get("/api/positions")
-def get_positions():
+def get_positions(token: str = Depends(verify_token)):
     """All open positions with live P&L."""
     try:
         client = get_trading_client()
@@ -262,7 +306,7 @@ def get_positions():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/positions/close-all")
-def close_all_positions():
+def close_all_positions(token: str = Depends(verify_token)):
     """Emergency: close all open positions."""
     try:
         client = get_trading_client()
@@ -277,7 +321,7 @@ def close_all_positions():
 # ═══════════════════════════════════════════
 
 @app.get("/api/orders")
-def get_orders(status: str = "all", limit: int = 50):
+def get_orders(status: str = "all", limit: int = 50, token: str = Depends(verify_token)):
     """Recent order history."""
     try:
         from alpaca.trading.requests import GetOrdersRequest
@@ -531,7 +575,7 @@ def run_bot_wrapper(mode: str):
         add_log("💤 Bot engine stopped", "warning")
 
 @app.post("/api/bot/start/{mode}")
-def start_bot(mode: str):
+def start_bot(mode: str, token: str = Depends(verify_token)):
     """Start a bot in the specified mode."""
     global bot_thread, bot_running
     
@@ -549,7 +593,7 @@ def start_bot(mode: str):
     return {"msg": f"{mode.title()} bot started", "mode": mode, "running": True}
 
 @app.post("/api/bot/stop")
-def stop_bot():
+def stop_bot(token: str = Depends(verify_token)):
     """Stop the running bot."""
     global bot_running
     bot_running = False
@@ -558,7 +602,7 @@ def stop_bot():
     return {"msg": "Stop signal sent", "running": False}
 
 @app.get("/api/bot/status")
-def get_bot_status():
+def get_bot_status(token: str = Depends(verify_token)):
     """Current bot status + live PnL."""
     live_pnl = 0.0
     try:
@@ -577,7 +621,7 @@ def get_bot_status():
     }
 
 @app.get("/api/bot/logs")
-def get_bot_logs(last: int = 50):
+def get_bot_logs(last: int = 50, token: str = Depends(verify_token)):
     """Return recent bot activity logs."""
     return {"logs": bot_logs[-last:], "total": len(bot_logs)}
 
@@ -586,7 +630,7 @@ def get_bot_logs(last: int = 50):
 # ═══════════════════════════════════════════
 
 @app.post("/api/backtest")
-def run_backtest(payload: BacktestPayload):
+def run_backtest(payload: BacktestPayload, token: str = Depends(verify_token)):
     """Run a backtest on a trading pair."""
     try:
         import yfinance as yf
