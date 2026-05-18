@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
 import LoginPage from './pages/LoginPage';
+import ProtectedRoute from './components/ProtectedRoute';
 import ApiKeySetup from './components/Settings/ApiKeySetup';
 import DashboardPage from './pages/DashboardPage';
 import PortfolioPage from './pages/PortfolioPage';
@@ -16,7 +17,6 @@ export default function App() {
   const [showKeySetup, setShowKeySetup] = useState(false);
   const [configChecked, setConfigChecked] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
-  const location = useLocation();
 
   // Check authentication on mount
   useEffect(() => {
@@ -70,17 +70,7 @@ export default function App() {
     );
   }
 
-  // Redirect authenticated users away from login page to home
-  if (authenticated && location.pathname === '/login') {
-    return <Navigate to="/" replace />;
-  }
-
-  // Redirect unauthenticated users to login
-  if (!authenticated && location.pathname !== '/login') {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Show login page for unauthenticated users
+  // If not authenticated, only show login page
   if (!authenticated) {
     return <LoginPage />;
   }
@@ -108,13 +98,12 @@ export default function App() {
       <div className="main-area">
         <Header onOpenSettings={() => setShowKeySetup(true)} onLogout={handleLogout} />
         <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/portfolio" element={<PortfolioPage />} />
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/backtest" element={<BacktestPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/portfolio" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
+          <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
+          <Route path="/backtest" element={<ProtectedRoute><BacktestPage /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         </Routes>
       </div>
 
