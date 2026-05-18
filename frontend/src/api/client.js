@@ -1,4 +1,4 @@
-const BASE = '';
+const BASE = import.meta.env.VITE_API_URL || '';
 
 async function request(url, options = {}) {
   try {
