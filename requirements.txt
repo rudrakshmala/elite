@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+crewai
+alpaca-trade-api
+pandas
+numpy
+requests
+python-dotenv
