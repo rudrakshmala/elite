@@ -70,11 +70,17 @@ export default function App() {
     );
   }
 
-  // Redirect authenticated users away from login page
+  // Redirect authenticated users away from login page to home
   if (authenticated && location.pathname === '/login') {
     return <Navigate to="/" replace />;
   }
 
+  // Redirect unauthenticated users to login
+  if (!authenticated && location.pathname !== '/login') {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Show login page for unauthenticated users
   if (!authenticated) {
     return <LoginPage />;
   }
@@ -107,6 +113,7 @@ export default function App() {
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/backtest" element={<BacktestPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
