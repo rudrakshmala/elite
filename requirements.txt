@@ -1,8 +1,9 @@
 fastapi
 uvicorn
-crewai
-alpaca-trade-api
+alpaca-py
 pandas
 numpy
 requests
 python-dotenv
+yfinance
+crewai
