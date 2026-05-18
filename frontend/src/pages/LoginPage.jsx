@@ -23,6 +23,7 @@ export default function LoginPage() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
+          localStorage.setItem('elite_token', data.token || 'authenticated');
           localStorage.setItem('authenticated', 'true');
           navigate('/');
         }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
 import LoginPage from './pages/LoginPage';
@@ -16,6 +16,7 @@ export default function App() {
   const [showKeySetup, setShowKeySetup] = useState(false);
   const [configChecked, setConfigChecked] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const location = useLocation();
 
   // Check authentication on mount
   useEffect(() => {
@@ -47,7 +48,8 @@ export default function App() {
   }, [authenticated]);
 
   const handleLogout = () => {
-    api.logout();
+    localStorage.removeItem('elite_token');
+    localStorage.removeItem('authenticated');
     setAuthenticated(false);
   };
 
@@ -66,6 +68,11 @@ export default function App() {
         <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Loading...</span>
       </div>
     );
+  }
+
+  // Redirect authenticated users away from login page
+  if (authenticated && location.pathname === '/login') {
+    return <Navigate to="/" replace />;
   }
 
   if (!authenticated) {
