@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api/client';
+import API from '../config';
 
 export default function LoginPage() {
-  const navigate = useNavigate();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -14,25 +14,23 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(`${API}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password })
       });
 
-      if (!response.ok) {
+      if (response.ok) {
         const data = await response.json();
-        setError(data.detail || 'Invalid password');
-        setLoading(false);
-        return;
+        if (data.success) {
+          localStorage.setItem('authenticated', 'true');
+          navigate('/');
+        }
+      } else if (response.status === 401) {
+        setError('Incorrect password');
+      } else {
+        setError('Login failed. Please try again.');
       }
-
-      const data = await response.json();
-      localStorage.setItem('elite_token', data.token);
-      localStorage.setItem('authenticated', 'true');
-      
-      setPassword('');
-      navigate('/');
     } catch (err) {
       setError('Connection error. Please try again.');
     } finally {
@@ -43,25 +41,21 @@ export default function LoginPage() {
   return (
     <div className="login-container">
       <div className="login-card">
-        {/* Logo */}
-        <div className="login-logo">
+        <div className="login-header">
           <div className="logo-icon">🦅</div>
-          <h1>Elite-Bot</h1>
-          <p>AI Trading Terminal</p>
+          <h1>Elite<span>Bot</span></h1>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleLogin} className="login-form">
+        <form onSubmit={handleLogin}>
           <div className="form-group">
             <label htmlFor="password">Password</label>
             <input
               id="password"
               type="password"
-              placeholder="Enter app password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password"
               disabled={loading}
-              autoFocus
             />
           </div>
 
@@ -69,17 +63,15 @@ export default function LoginPage() {
 
           <button
             type="submit"
+            className="btn btn-primary"
             disabled={loading || !password}
-            className="login-btn"
+            style={{ width: '100%', justifyContent: 'center' }}
           >
-            {loading ? 'Authenticating...' : 'Login'}
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
-        {/* Footer */}
-        <div className="login-footer">
-          <p>Secure access to your trading dashboard</p>
-        </div>
+        <p className="login-footer">Demo Password: EliteBot2026</p>
       </div>
     </div>
   );
