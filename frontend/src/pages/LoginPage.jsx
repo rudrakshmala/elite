@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import API from '../config';
 
 export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -25,7 +23,7 @@ export default function LoginPage() {
         if (data.success) {
           localStorage.setItem('elite_token', data.token || 'authenticated');
           localStorage.setItem('authenticated', 'true');
-          navigate('/');
+          window.location.href = '/';
         }
       } else if (response.status === 401) {
         setError('Incorrect password');
