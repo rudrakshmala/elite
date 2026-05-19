@@ -1,15 +1,58 @@
 import yfinance as yf
 import pandas as pd
 import ta # <--- The new stable library
+import time
 
 def get_data(symbol, period="1y", interval="1d"):
     print(f"Fetching data for {symbol}...")
     
-    # 1. Fetch Data
-    try:
-        df = yf.download(symbol, period=period, interval=interval, progress=False, multi_level_index=False)
-    except:
-        df = yf.download(symbol, period=period, interval=interval, progress=False)
+    # 1. Fetch Data with retry logic for rate limiting
+    max_retries = 3
+    retry_delay = 30  # seconds
+    
+    for attempt in range(max_retries):
+        try:
+            df = yf.download(
+                symbol, 
+                period=period, 
+                interval=interval, 
+                progress=False, 
+                multi_level_index=False,
+                rate_limit_retry=True
+            )
+            break  # Success, exit retry loop
+        except yf.utils.yfRateLimitError:
+            if attempt < max_retries - 1:
+                print(f"⚠️ Rate limit hit. Waiting {retry_delay}s before retry {attempt + 1}/{max_retries}...")
+                time.sleep(retry_delay)
+            else:
+                print(f"❌ Failed after {max_retries} retries. Rate limited.")
+                return None
+        except Exception as e:
+            # For non-rate-limit errors, try without multi_level_index
+            if attempt == 0:
+                try:
+                    df = yf.download(
+                        symbol, 
+                        period=period, 
+                        interval=interval, 
+                        progress=False,
+                        rate_limit_retry=True
+                    )
+                    break
+                except yf.utils.yfRateLimitError:
+                    if attempt < max_retries - 1:
+                        print(f"⚠️ Rate limit hit. Waiting {retry_delay}s before retry {attempt + 1}/{max_retries}...")
+                        time.sleep(retry_delay)
+                    else:
+                        print(f"❌ Failed after {max_retries} retries. Rate limited.")
+                        return None
+                except Exception:
+                    print(f"Error: {e}")
+                    return None
+            else:
+                print(f"Error: {e}")
+                return None
     
     if df.empty:
         print("Error: No data found.")
