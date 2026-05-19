@@ -1,29 +1,15 @@
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 const api = {
-  getToken: () => localStorage.getItem('elite_token'),
-  
-  getHeaders: () => ({
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${api.getToken()}`
-  }),
-
   async request(endpoint, options = {}) {
     const url = `${API_BASE}${endpoint}`;
     const response = await fetch(url, {
       ...options,
       headers: {
-        ...api.getHeaders(),
+        'Content-Type': 'application/json',
         ...options.headers
       }
     });
-
-    if (response.status === 401) {
-      localStorage.removeItem('elite_token');
-      localStorage.removeItem('authenticated');
-      window.location.href = '/login';
-      throw new Error('Unauthorized');
-    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
@@ -31,17 +17,6 @@ const api = {
     }
 
     return response.json();
-  },
-
-  // Auth
-  login: (password) => api.request('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ password })
-  }),
-
-  logout: () => {
-    localStorage.removeItem('elite_token');
-    localStorage.removeItem('authenticated');
   },
 
   // Config

@@ -1,22 +1,15 @@
-import { Settings, KeyRound, LogOut } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Settings, KeyRound } from 'lucide-react';
 import { usePolling } from '../../hooks/usePolling';
 import api from '../../api/client';
 
-export default function Header({ onOpenSettings, onLogout }) {
+export default function Header({ onOpenSettings }) {
   const { data: account } = usePolling(() => api.getAccount().catch(() => null), 5000);
   const { data: config } = usePolling(() => api.getConfig(), 10000);
-  const navigate = useNavigate();
 
   const equity = account?.equity || 0;
   const lastEquity = account?.last_equity || equity;
   const dayChange = equity - lastEquity;
   const dayChangePct = lastEquity > 0 ? ((dayChange / lastEquity) * 100) : 0;
-
-  const handleLogout = () => {
-    onLogout();
-    navigate('/login');
-  };
 
   return (
     <header className="header">
@@ -48,20 +41,6 @@ export default function Header({ onOpenSettings, onLogout }) {
 
         <button className="settings-btn" onClick={onOpenSettings} title="Settings">
           <Settings size={16} />
-        </button>
-
-        <button className="logout-btn" onClick={handleLogout} title="Logout" style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: '6px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--text-secondary)',
-          transition: 'color 0.2s'
-        }}>
-          <LogOut size={16} />
         </button>
       </div>
     </header>
