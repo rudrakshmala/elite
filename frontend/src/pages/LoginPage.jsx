@@ -23,7 +23,8 @@ export default function LoginPage() {
         if (data.success) {
           localStorage.setItem('elite_token', data.token || 'authenticated');
           localStorage.setItem('authenticated', 'true');
-          window.location.href = '/';
+          // Use replace() instead of href to prevent back-button returning to login
+          window.location.replace('/');
         }
       } else if (response.status === 401) {
         setError('Incorrect password');
