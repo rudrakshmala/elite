@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
 import LoginPage from './pages/LoginPage';
@@ -51,6 +51,7 @@ export default function App() {
     localStorage.removeItem('elite_token');
     localStorage.removeItem('authenticated');
     setAuthenticated(false);
+    window.location.href = '/login';
   };
 
   if (!authChecked) {
@@ -76,7 +77,7 @@ export default function App() {
     return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<LoginPage />} />
       </Routes>
     );
   }
@@ -110,7 +111,7 @@ export default function App() {
           <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
           <Route path="/backtest" element={<ProtectedRoute><BacktestPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
         </Routes>
       </div>
 
