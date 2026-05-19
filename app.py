@@ -256,6 +256,15 @@ def get_account(token: str = Depends(verify_token)):
             "paper": runtime_config["paper"]
         }
     except Exception as e:
+        # Better error handling for 401 / invalid API keys
+        error_str = str(e).lower()
+        if '401' in str(e) or 'unauthorized' in error_str or 'invalid' in error_str:
+            add_log(f"❌ Alpaca API Authentication Failed: {e}", "error")
+            raise HTTPException(
+                status_code=401, 
+                detail="Invalid Alpaca API keys. Please check your credentials in Settings."
+            )
+        add_log(f"❌ Account retrieval failed: {e}", "error")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/account/portfolio-history")
