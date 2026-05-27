@@ -9,3 +9,7 @@ crewai
 upstox-python-sdk
 pytz
 numpy
+scipy
+arch>=6.3.0
+hmmlearn>=0.3.0
+

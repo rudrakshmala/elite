@@ -123,10 +123,11 @@ cio_agent = Agent(
 )
 
 # --- 🚀 SMART EXECUTION ENGINE ---
-def evaluate_smart_opportunity(ticker_a, ticker_b=None, technicals=None):
+def evaluate_smart_opportunity(ticker_a, ticker_b=None, technicals=None, quant_context=""):
     """
     Evaluates either a Single Ticker (if ticker_b is None) or a Pair.
     technicals: dict containing {'z_score': x, 'rsi': y, 'type': 'single|pair'}
+    quant_context: optional quantitative background context from QuantBrain
     """
     is_pair = ticker_b is not None
     context_str = f"{ticker_a}/{ticker_b}" if is_pair else ticker_a
@@ -141,6 +142,10 @@ def evaluate_smart_opportunity(ticker_a, ticker_b=None, technicals=None):
         f"Check live price/volume for {ticker_a}. Current RSI: {technicals.get('rsi')}. Is the stock overextended or breaking out?"
     )
     
+    # Append any quant brain stats to guide the quant analyst agent
+    if quant_context:
+        quant_desc += f"\nAdditional Quant Brain Metrics:\n{quant_context}"
+
     task_quant = Task(
         description=quant_desc,
         expected_output='A quantitative summary confirming if the technical setup is valid.',
@@ -178,6 +183,8 @@ def evaluate_smart_opportunity(ticker_a, ticker_b=None, technicals=None):
     Strategy: {type_str}.
     Technicals: {json.dumps(technicals)}
     
+    {"Quant Brain Context: " + quant_context if quant_context else ""}
+
     Decide: BUY, SELL, or WAIT.
     { "BUY/SELL = Open the spread trade" if is_pair else "BUY/SELL = Long/Short the individual stock" }.
     
@@ -208,5 +215,5 @@ def evaluate_smart_opportunity(ticker_a, ticker_b=None, technicals=None):
     return trading_crew.kickoff()
 
 # Legacy Support
-def evaluate_opportunity(sym_a, sym_b, z_score):
-    return evaluate_smart_opportunity(sym_a, sym_b, {"z_score": z_score, "type": "pair"})
+def evaluate_opportunity(sym_a, sym_b, z_score, quant_context=""):
+    return evaluate_smart_opportunity(sym_a, sym_b, {"z_score": z_score, "type": "pair"}, quant_context)

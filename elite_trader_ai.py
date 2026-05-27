@@ -209,7 +209,41 @@ class EliteBot:
                 
                 try:
                     # --- 🤖 THE MAGIC HAPPENS HERE ---
-                    crew_output = evaluate_opportunity(sym_a, sym_b, best_z)
+                    # 1. Query the Quant Brain (Kalman, GARCH, HMM, Kelly, Sentiment)
+                    qs_context = ""
+
+                    try:
+                        from quant.quant_brain import get_quant_signal
+                        print(f"   🧠 Quant Brain: Analyzing statistical signals for {sym_a}/{sym_b}...")
+                        qs = get_quant_signal(sym_a, sym_b, best_z)
+                        
+                        # Print Quant Brain summary to terminal
+                        print(f"      🟢 Regime: {qs.regime} ({qs.regime_prob:.0%}) | Volatility: {'OK' if qs.volatility_ok else 'HIGH'} (forecast: {qs.forecasted_vol:.1%})")
+                        print(f"      🟢 Kelly Size Recommendation: {qs.kelly_fraction:.1%} | Sentiment Score: {qs.sentiment_score:.2f}")
+                        
+                        if not qs.approved:
+                            print(f"   🛑 Trade Rejected by Quant Brain: {qs.reason}. Putting {pair_key} on cooldown.")
+                            self.cooldowns[pair_key] = time.time()
+                            time.sleep(15)
+                            continue
+                            
+                        # Set up the context to enrich the CrewAI agents' decision-making process
+                        qs_context = (
+                            f"Kalman Hedge Ratio: {qs.hedge_ratio:.4f}\n"
+                            f"GARCH Predicted Volatility: {qs.forecasted_vol:.1%}\n"
+                            f"Global Market HMM Regime: {qs.regime} (confidence: {qs.regime_prob:.0%})\n"
+                            f"Sizing (Kelly Fraction): {qs.kelly_fraction:.1%}\n"
+                            f"Micro News Sentiment Score: {qs.sentiment_score:.2f}\n"
+                            f"CNN Macro Fear & Greed Index: {qs.fear_greed}/100"
+                        )
+                        kelly_fraction = qs.kelly_fraction
+                    except Exception as q_err:
+                        print(f"      ⚠️ Quant Brain signal calculation failed (using safe fallback values): {q_err}")
+                        qs_context = ""
+                        kelly_fraction = 0.10  # Fallback to original default size
+                    
+                    # 2. Query CrewAI for validation, providing the advanced quant context
+                    crew_output = evaluate_opportunity(sym_a, sym_b, best_z, qs_context)
                     data, should_trade, signal = parse_ai_decision(crew_output)
                     
                     # Print the full Trader Agent JSON output to terminal
@@ -228,12 +262,13 @@ class EliteBot:
                         print(f"   ⚠️ Skipped: Not enough buying power (${cash}).")
                         continue
 
-                    budget = cash * 0.10
+                    # Dynamic Kelly budgeting
+                    budget = cash * kelly_fraction
                     qty_a = self.calculate_qty(sym_a, budget)
                     qty_b = self.calculate_qty(sym_b, budget)
                     
                     if qty_a > 0 and qty_b > 0 and signal:
-                        print(f"   ⚡ EXECUTING: {signal} ({qty_a} {sym_a} / {qty_b} {sym_b})")
+                        print(f"   ⚡ EXECUTING: {signal} ({qty_a} {sym_a} / {qty_b} {sym_b}) [Size: {kelly_fraction:.1%}]")
                         side_a = OrderSide.BUY if signal == "BUY_PAIR" else OrderSide.SELL
                         side_b = OrderSide.SELL if signal == "BUY_PAIR" else OrderSide.BUY
                         
@@ -246,6 +281,7 @@ class EliteBot:
                         # This will catch the silent failures!
                         print(f"   ⚠️ Skipped Execution: Calculated quantity is 0!")
                         print(f"      Budget: ${budget:.2f} | {sym_a} Price: ${self.get_price(sym_a)} | {sym_b} Price: ${self.get_price(sym_b)}")
+
                 except Exception as e: 
                     print(f"   ❌ CrewAI or Execution Failed: {e}")
                     print("   ⏳ Sleeping for 60 seconds to reset API limits...")

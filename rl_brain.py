@@ -10,10 +10,10 @@ class QLearningAgent:
         self.epsilon = epsilon  # Exploration rate (1.0 = 100% random, 0.0 = 100% strictly greedy)
         self.q_table = {}       # The "Cheat Sheet" brain
 
-    def get_state_key(self, z_score, sentiment_score=0.5):
+    def get_state_key(self, z_score, sentiment_score=0.5, regime="MEAN_REVERTING", vol_tier="GREEN"):
         """
-        Convert Z-score + sentiment into a Tauric-style state key.
-        Example: Z=2.1, sentiment=0.7 -> "Z_2.0_S_Positive"
+        Convert Z-score + sentiment + regime + vol_tier into a Tauric-style state key.
+        Example: Z=2.1, sentiment=0.7, regime="MEAN_REVERTING", vol_tier="GREEN" -> "Z_2.0_S_Positive_R_MEAN_REVERTING_V_GREEN"
         sentiment_score: 0-1, bucketed into Positive (>=0.6), Neutral (0.4-0.6), Negative (<=0.4)
         """
         rounded_z = round(z_score * 2) / 2
@@ -23,10 +23,11 @@ class QLearningAgent:
             sentiment_bucket = "Negative"
         else:
             sentiment_bucket = "Neutral"
-        return f"Z_{rounded_z}_S_{sentiment_bucket}"
+        return f"Z_{rounded_z}_S_{sentiment_bucket}_R_{regime}_V_{vol_tier}"
 
-    def choose_action(self, z_score, sentiment_score=0.5):
-        state = self.get_state_key(z_score, sentiment_score)
+
+    def choose_action(self, z_score, sentiment_score=0.5, regime="MEAN_REVERTING", vol_tier="GREEN"):
+        state = self.get_state_key(z_score, sentiment_score, regime, vol_tier)
         
         # Check if state exists in brain, if not add it
         self.check_state_exist(state)
@@ -44,9 +45,10 @@ class QLearningAgent:
             
         return action
 
-    def learn(self, z_score, sentiment_score, action, reward, next_z_score, next_sentiment_score=0.5):
-        state = self.get_state_key(z_score, sentiment_score)
-        next_state = self.get_state_key(next_z_score, next_sentiment_score)
+    def learn(self, z_score, sentiment_score, action, reward, next_z_score, next_sentiment_score=0.5, 
+              regime="MEAN_REVERTING", vol_tier="GREEN", next_regime="MEAN_REVERTING", next_vol_tier="GREEN"):
+        state = self.get_state_key(z_score, sentiment_score, regime, vol_tier)
+        next_state = self.get_state_key(next_z_score, next_sentiment_score, next_regime, next_vol_tier)
 
         self.check_state_exist(state)
         self.check_state_exist(next_state)
@@ -60,6 +62,7 @@ class QLearningAgent:
 
         # Epsilon decay: decrease by 0.5% each learn, min 0.05
         self.epsilon = max(0.05, self.epsilon * (1 - 0.005))
+
 
     def check_state_exist(self, state):
         if state not in self.q_table:
