@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: elite-bot-trading-hub
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health-debug
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: ALPACA_API_KEY
+        sync: false
+        placeholder: "Enter your Alpaca API Key ID (or leave blank to configure via UI)"
+      - key: ALPACA_SECRET_KEY
+        sync: false
+        placeholder: "Enter your Alpaca Secret Key (or leave blank to configure via UI)"
+      - key: ALPACA_PAPER
+        value: "true"
+      - key: GROQ_API_KEY
+        sync: false
+        placeholder: "Enter your Groq API Key (Optional, used for AI Crew validation)"

@@ -1,0 +1,14 @@
+.git
+.gitignore
+venv/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+__pycache__/
+*.pyc
+.gemini/
+.idea/
+.vscode/
+CVS
+.DS_Store
+*.log

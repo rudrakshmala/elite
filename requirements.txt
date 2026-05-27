@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+yfinance
+pandas
+ta
+alpaca-py
+crewai
+upstox-python-sdk
+pytz
+numpy
