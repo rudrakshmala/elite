@@ -24,12 +24,14 @@ FEE_PCT = 0.1                 # 0.1% fee per side
 
 def __getattr__(name):
     if name == "API_KEY":
-        return os.environ.get("ALPACA_API_KEY", "PKIVON6P3CB46V4DMNTOARVZC7")
+        return os.environ.get("ALPACA_API_KEY", "your_alpaca_api_key_here")
     elif name == "SECRET_KEY":
-        return os.environ.get("ALPACA_SECRET_KEY", "AzWsCd7mZ8sYWtkMGuv6o4JC5yQRkeW6on244w1aesp1")
+        return os.environ.get("ALPACA_SECRET_KEY", "your_alpaca_secret_key_here")
     elif name == "BASE_URL":
         paper = os.environ.get("ALPACA_PAPER", "true").lower() == "true"
         return "https://paper-api.alpaca.markets/v2" if paper else "https://api.alpaca.markets/v2"
     elif name == "UPSTOX_ACCESS_TOKEN":
         return os.environ.get("UPSTOX_ACCESS_TOKEN", "")
+    elif name == "GROQ_API_KEY":
+        return os.environ.get("GROQ_API_KEY", "")
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

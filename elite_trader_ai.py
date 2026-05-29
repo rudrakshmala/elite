@@ -221,11 +221,34 @@ class EliteBot:
                         print(f"      🟢 Regime: {qs.regime} ({qs.regime_prob:.0%}) | Volatility: {'OK' if qs.volatility_ok else 'HIGH'} (forecast: {qs.forecasted_vol:.1%})")
                         print(f"      🟢 Kelly Size Recommendation: {qs.kelly_fraction:.1%} | Sentiment Score: {qs.sentiment_score:.2f}")
                         
+                        # Save quant signals to JSON for real-time frontend dashboard polling
+                        try:
+                            with open("quant_signals.json", "w") as jf:
+                                json.dump({
+                                    "sym_a": sym_a,
+                                    "sym_b": sym_b,
+                                    "z_score": round(best_z, 2),
+                                    "approved": qs.approved,
+                                    "regime": qs.regime,
+                                    "regime_prob": round(qs.regime_prob, 2),
+                                    "volatility_ok": qs.volatility_ok,
+                                    "forecasted_vol": round(qs.forecasted_vol, 4),
+                                    "kelly_fraction": round(qs.kelly_fraction, 4),
+                                    "hedge_ratio": round(qs.hedge_ratio, 4),
+                                    "sentiment_score": round(qs.sentiment_score, 4),
+                                    "fear_greed": qs.fear_greed,
+                                    "reason": qs.reason,
+                                    "updated_at": time.strftime("%H:%M:%S")
+                                }, jf)
+                        except Exception:
+                            pass
+
                         if not qs.approved:
                             print(f"   🛑 Trade Rejected by Quant Brain: {qs.reason}. Putting {pair_key} on cooldown.")
                             self.cooldowns[pair_key] = time.time()
                             time.sleep(15)
                             continue
+
                             
                         # Set up the context to enrich the CrewAI agents' decision-making process
                         qs_context = (

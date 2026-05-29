@@ -85,6 +85,21 @@ runtime_config = {
 
 def load_initial_config():
     """Load keys from environment variables or fallback to config.py."""
+    # Try to load .env file manually if it exists to populate os.environ
+    if os.path.exists(".env"):
+        try:
+            with open(".env", "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        k = k.strip()
+                        v = v.strip().strip("'\"")
+                        if k and not os.environ.get(k):
+                            os.environ[k] = v
+        except Exception:
+            pass
+
     # Ensure environment variables are populated on startup if they exist in config.py
     try:
         import config
@@ -97,6 +112,8 @@ def load_initial_config():
             # Determine paper mode from config
             url = getattr(config, "BASE_URL", "")
             os.environ["ALPACA_PAPER"] = "true" if "paper" in url else "false"
+        if not os.environ.get("GROQ_API_KEY"):
+            os.environ["GROQ_API_KEY"] = getattr(config, "GROQ_API_KEY", "")
             
         runtime_config["api_key"] = os.environ["ALPACA_API_KEY"]
         runtime_config["secret_key"] = os.environ["ALPACA_SECRET_KEY"]
@@ -718,6 +735,41 @@ def get_bot_status():
 def get_bot_logs(last: int = 50):
     """Return recent bot activity logs."""
     return {"logs": bot_logs[-last:], "total": len(bot_logs)}
+
+@app.get("/api/quant/status")
+def get_quant_status():
+    """Returns the latest calculated Quant Brain signals from the dynamic JSON state file."""
+    import os
+    import json
+    
+    file_path = "quant_signals.json"
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+                return {**data, "active": True}
+        except Exception:
+            pass
+            
+    # Default fallback placeholder state
+    return {
+        "active": False,
+        "sym_a": "N/A",
+        "sym_b": "N/A",
+        "z_score": 0.0,
+        "approved": False,
+        "regime": "N/A",
+        "regime_prob": 0.0,
+        "volatility_ok": True,
+        "forecasted_vol": 0.0,
+        "kelly_fraction": 0.10,
+        "hedge_ratio": 1.0,
+        "sentiment_score": 0.0,
+        "fear_greed": 50,
+        "reason": "Quant Brain is inactive. Start Elite Mode to begin scanning.",
+        "updated_at": "Never"
+    }
+
 
 # ═══════════════════════════════════════════
 # 7. BACKTEST

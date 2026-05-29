@@ -8,9 +8,23 @@ from crewai.tools import tool
 # LiteLLM/CrewAI automatically looks up the GROQ_API_KEY environment variable.
 # It is set dynamically by app.py or in the deployment environment (e.g. Render dashboard).
 
-# Pointing CrewAI to Groq's blazing-fast Llama 3.3 70B model
+# Pointing CrewAI to Groq's model rotation pool to automatically bypass rate limits
+GROQ_MODELS = [
+    "groq/llama-3.3-70b-versatile",
+    "groq/llama-3.1-8b-instant",
+    "groq/mixtral-8x7b-32768"
+]
+current_model_idx = 0
+
+def is_rate_limit_exception(e) -> bool:
+    """Detect if an exception is a rate limit or API quota exceeded error."""
+    err_str = str(e).lower()
+    return any(keyword in err_str for keyword in [
+        "rate limit", "429", "rate_limit", "limit exceeded", "ratelimit", "too many requests"
+    ])
+
 groq_llm = LLM(
-    model="groq/llama-3.3-70b-versatile",
+    model=GROQ_MODELS[current_model_idx],
     temperature=0.1
 )
 
@@ -205,14 +219,39 @@ def evaluate_smart_opportunity(ticker_a, ticker_b=None, technicals=None, quant_c
         context=[task_quant, task_news, task_bear]
     )
 
-    trading_crew = Crew(
-        agents=[quant_agent, analyst_agent, bear_analyst_agent, cio_agent],
-        tasks=[task_quant, task_news, task_bear, task_cio],
-        process=Process.sequential,
-        verbose=True
-    )
-
-    return trading_crew.kickoff()
+    global current_model_idx
+    max_retries = len(GROQ_MODELS)
+    
+    for attempt in range(max_retries):
+        try:
+            print(f"   🤖 Evaluating setup using Groq model: {groq_llm.model} (Attempt {attempt+1}/{max_retries})")
+            
+            trading_crew = Crew(
+                agents=[quant_agent, analyst_agent, bear_analyst_agent, cio_agent],
+                tasks=[task_quant, task_news, task_bear, task_cio],
+                process=Process.sequential,
+                verbose=True
+            )
+            
+            return trading_crew.kickoff()
+            
+        except Exception as e:
+            if is_rate_limit_exception(e):
+                current_model_idx = (current_model_idx + 1) % len(GROQ_MODELS)
+                new_model = GROQ_MODELS[current_model_idx]
+                print(f"   ⚠️ Rate limit hit on model '{groq_llm.model}'!")
+                print(f"   🔄 Rotating to fallback model: '{new_model}' and retrying immediately...")
+                groq_llm.model = new_model
+                
+                # Re-bind agents to use the updated LLM configuration
+                for agent in [quant_agent, analyst_agent, bear_analyst_agent, cio_agent]:
+                    agent.llm = groq_llm
+            else:
+                # Raise non-rate-limit errors (like authentication issues) immediately
+                print(f"   ❌ CrewAI failed with non-rate-limit error: {e}")
+                raise e
+                
+    raise Exception("All models in the Groq rotation pool have hit rate limits.")
 
 # Legacy Support
 def evaluate_opportunity(sym_a, sym_b, z_score, quant_context=""):
