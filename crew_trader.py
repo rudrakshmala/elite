@@ -147,7 +147,10 @@ def evaluate_smart_opportunity(ticker_a, ticker_b=None, technicals=None, quant_c
     context_str = f"{ticker_a}/{ticker_b}" if is_pair else ticker_a
     type_str = "MEAN-REVERSION PAIR" if is_pair else "SINGLE-TICKER MOMENTUM"
     
+    gkey = os.environ.get("GROQ_API_KEY", "")
+    gkey_masked = gkey[:6] + "..." + gkey[-4:] if len(gkey) > 10 else "Not Set/Empty"
     print(f"\n📢 Assembling the Crew to evaluate {context_str} ({type_str})")
+    print(f"   🔑 Active Groq API Key (Backend Env): {gkey_masked}")
 
     # 1. Quant Task: Check the math
     quant_desc = (
